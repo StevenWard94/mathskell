@@ -1,0 +1,9 @@
+# .gitignore file for https://github.com/StevenWard94/haskell
+
+.*
+!.*/
+!.gitignore
+
+.tmp/
+.notes/
+.local/
