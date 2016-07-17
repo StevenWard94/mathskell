@@ -1,3 +1,4 @@
+-- vim: sw=4,sts=4:
 {-# LANGUAGE CPP
           , DeriveDataTypeable
           , FlexibleInstances
@@ -19,7 +20,7 @@
 
 module Beta.Vector (
   -- * Vector type
-  Vector,
+  Vector, MVector
 
   -- * Accessors
 
@@ -137,10 +138,10 @@ module Beta.Vector (
   toList, fromList, fromListN,
 
   -- ** Other Vector types
-  -- G.convert,
+     G.convert,
 
   -- ** Mutable vectors
-  -- freeze, thaw, copy, unsafeFreeze, unsafeThaw, unsafeCopy
+     freeze, thaw, copy, unsafeFreeze, unsafeThaw, unsafeCopy
 ) where
 
 import qualified Data.Vector.Generic as G
@@ -194,3 +195,59 @@ instance NFData a => NFData (Vector a) where
 
 instance Show a => Show (Vector a) where
     showsPrec = G.showsPrec
+
+instance Read a => Read (Vector a) where
+    readPrec = G.readPrec
+    readListPrec = readListPrecDefault
+
+#if __GLASGOW_HASKELL__ >= 708
+
+instance Exts.IsList (Vector a) where
+    type Item (Vector a) = a
+    fromList = fromList
+    fromListN = fromListN
+    toList = toList
+
+#endif
+
+instance Data a => Data (Vector a) where
+    gfoldl       = G.gfoldl
+    toConstr _   = error "toConstr"
+    gunfold _ _  = error "gunfold"
+    dataTypeOf _ = G.mkType "Beta.Vector.Vector"
+    dataCast1    = G.dataCast
+
+type instance G.Mutable Vector = MVector
+
+instance G.Vector Vector a where
+    {-# INLINE basicUnsafeFreeze #-}
+    basicUnsafeFreeze (MVector i n marr)
+      = Vector i n `liftM` unsafeFreezeArray marr
+
+    {-# INLINE basicUnsafeThaw #-}
+    basicUnsafeThaw (Vector i n arr)
+      = MVector i n `liftM` unsafeThawArray arr
+
+    {-# INLINE basicLength #-}
+    basicLength (Vector _ n _) = n
+
+    {-# INLINE basicUnsafeSlice #-}
+    basicUnsafeSlice j n (Vector i _ arr) = Vector (i+j) n arr
+
+    {-# INLINE basicUnsafeIndexM #-}
+    basicUnsafeIndexM (Vector i _ arr) j = indexArrayM arr (i+j)
+
+    {-# INLINE basicUnsafeCopy #-}
+    basicUnsafeCopy (MVector i n dst) (Vector j _ src)
+      = copyArray dst i src j n
+
+-- See http://trac.haskell.org/vector/ticket/12
+instance Eq a => Eq (Vector a) where
+    {-# INLINE (==) #-}
+    xs == ys = Bundle.eq (G.stream xs) (G.stream ys)
+
+    {-# INLINE (/=) #-}
+    xs /= ys = not (Bundle.eq (G.stream xs) (G.stream ys))
+
+-- See http://trac.haskell.org/vector/ticket/12
+instance Ord a => Ord (Vector a) where
