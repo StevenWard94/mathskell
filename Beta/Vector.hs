@@ -1,4 +1,4 @@
--- vim: sw=4,sts=4:
+-- vim: set sw=4 sts=4:
 {-# LANGUAGE CPP
           , DeriveDataTypeable
           , FlexibleInstances
@@ -11,7 +11,7 @@
 -- Module:        Beta.Vector
 -- Author:        Steven Ward <stevenward94@gmail.com>
 -- URL:           https://github.com/StevenWard94/mathaskell
--- Last Change:   2016 July 15
+-- Last Change:   2016 July 21
 --
 -- My implementation of an Int Vector data type (IN PROGRESS)
 -- NOTE: this uses A LOT of help from the Data.Vector module already
@@ -251,3 +251,122 @@ instance Eq a => Eq (Vector a) where
 
 -- See http://trac.haskell.org/vector/ticket/12
 instance Ord a => Ord (Vector a) where
+    {-# INLINE compare #-}
+    compare xs ys = Bundle.cmp (G.stream xs) (G.stream ys)
+
+    {-# INLINE (<) #-}
+    xs < ys = Bundle.cmp (G.stream xs) (G.stream ys) == LT
+
+    {-# INLINE (<=) #-}
+    xs <= ys = Bundle.cmp (G.stream xs) (G.stream ys) /= GT
+
+    {-# INLINE (>) #-}
+    xs > ys = Bundle.cmp (G.stream xs) (G.stream ys) == GT
+
+    {-# INLINE (>=) #-}
+    xs >= ys = Bundle.cmp (G.stream xs) (G.stream ys) /= LT
+
+instance Monoid (Vector a) where
+    {-# INLINE mempty #-}
+    mempty = empty
+
+    {-# INLINE mappend #-}
+    mappend = (++)
+
+    {-# INLINE mconcat #-}
+    mconcat = concat
+
+instance Functor Vector where
+    {-# INLINE fmap #-}
+    fmap = map
+
+instance Monad Vector where
+    {-# INLINE return #-}
+    return = singleton
+
+    {-# INLINE (>>=) #-}
+    (>>=) = flip concatMap
+
+    {-# INLINE fail #-}
+    fail _ = empty
+
+instance MonadPlus Vector where
+    {-# INLINE mzero #-}
+    mzero = empty
+
+    {-# INLINE mplus #-}
+    mplus = (++)
+
+instance Applicative.Applicative Vector where
+    {-# INLINE pure #-}
+    pure = singleton
+
+    {-# INLINE (<*>) #-}
+    (<*>) = ap
+
+instance Applicative.Alternative Vector where
+    {-# INLINE empty #-}
+    empty = empty
+
+    {-# INLINE (<|>) #-}
+    (<|>) = (++)
+
+instance Foldable.Foldable Vector where
+    {-# INLINE foldr #-}
+    foldr = foldr
+
+    {-# INLINE foldl #-}
+    foldl = foldl
+
+    {-# INLINE foldr1 #-}
+    foldr1 = foldr1
+
+    {-# INLINE foldl1 #-}
+    foldl1 = foldl1
+
+instance Traversable.Traversable Vector where
+    {-# INLINE traverse #-}
+    traverse f xs = fromList Applicative.<$> Traversable.traverse f (toList xs)
+
+    {-# INLINE mapM #-}
+    mapM = mapM
+
+    {-# INLINE sequence #-}
+    sequence = sequence
+
+
+-- Length Information
+-- ------------------
+
+-- | /0(1)/ Get the length of a vector
+length :: Vector a -> Int
+{-# INLINE length #-}
+length = G.length
+
+-- | /0(1)/ Checks if a vector is empty
+null :: Vector a -> Bool
+{-# INLINE null #-}
+null = G.null
+
+-- Indexing
+-- --------
+
+-- | 0(1) Indexing
+(!) :: Vector a -> Int -> a
+{-# INLINE (!) #-}
+(!) = (G.!)
+
+-- | 0(1) Safe indexing
+(!?) :: Vector a -> Int -> Maybe a
+{-# INLINE (!?) #-}
+(!?) = (G.!?)
+
+-- | /0(1)/ First element
+head :: Vector a -> a
+{-# INLINE head #-}
+head = G.head
+
+-- | /0(1)/ Last element
+last :: Vector a -> a
+{-# INLINE last #-}
+last = G.last
