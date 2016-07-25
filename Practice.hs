@@ -1,72 +1,55 @@
-{-# LANGUAGE CPP,
-  Rank2Types,
-  MultiParamTypeClasses,
-  FlexibleContexts,
-  TypeFamilies,
-  ScopedTypeVariables, BangPatterns
-  #-}
-
 -- |
--- Module      : Mathskell.Practice
--- Maintainer  : Steven Ward <stevenward94@gmail.com>
--- Stability   : generally unstable
--- Last Change : 2016 July 21
---
--- Just a haskell script for messing around with different concepts,
--- modules, etc.
+--  Module:        Practice.hs
+--  Author:        Steven Ward <stevenward94@gmail.com>
+--  URL:           https://github.com/StevenWard94/mathskell
+--  Last Change:   2016 July 24
 --
 
-import Prelude hiding( length, (+), empty, (*) )
+import Prelude hiding( length, (+), (*) )
 import qualified Prelude as P
 
 infixr 5 :+:
-data Vector a = Empty | Vec [a] | a :+: (Vector a) deriving (Show)
+data Vector = Empty | Zero | Unit | Int :+: Vector
 
--- | zero and unit are inifinite-length representations of the zero- and
--- unit-vectors, respectively. zero' and unit' are functions that generate
--- finite-length zero- and unit-vectors, respectively.
-zero :: Vector Int
-zero = Vec (repeat 0)
+-- | Implementing Vector as an instance of the Show typeclass
+instance Show Vector where
+  show Empty = ""
+  show Zero = "{0}"
+  show Unit = "{I}"
+  show (x :+: xs) = show x ++ " " ++ show xs
 
-unit :: Vector Int
-unit = Vec (repeat 1)
+-- | Generate a Vector from a list of Int values
+fromList :: [Int] -> Vector
+fromList [] = Empty
+fromList [x] = x :+: Empty
+fromList (x:xs) = x :+: fromList xs
 
-zero' :: (Integral a) => a -> Vector Int
-zero' n = Vec (take n zero)
-
-unit' :: (Integral a) => a -> Vector Int
-unit' n = Vec (take n unit)
-
--- | Getting the length/size (# of elements) of a Vector
-length :: Vector a -> Int
+-- | Getting the length/size (number of elements) of a Vector
+length :: Vector -> Int
 length Empty = 0
-length zero  = error "Error: zero is an infinite size - try zero' for a finite zero-vector"
-length unit  = error "Error: unit is an infinite size - try unit' for a finite unit-vector"
-length zero' = id
-length unit' = id
-length (Vec (x:xs)) = 1 P.+ length (Vec xs)
+length Zero = error "{0} is of indeterminate length"
+length Unit = error "{I} is of indeterminate length"
+length (x :+: v) = 1 P.+ length v
 size = length
 
--- | Determine whether a Vector is Empty (calls length, so zero & unit will
--- throw errors
-empty :: Vector a -> Bool
-empty v = length v == 0
+-- | Operator for concatenating Vectors
+infixr 5 .++
+(.++) :: Vector -> Vector -> Vector
+(.++) Empty v = v
+(.++) _ Unit = error "cannot concatenate unit-vector"
+(.++) Unit _ = error "cannot concatenate unit-vector"
+(.++) _ Zero = error "cannot concatenate zero-vector"
+(.++) Zero _ = error "cannot concatenate zero-vector"
+(.++) v Empty = v
+(x :+: xs) .++ v = x :+: (xs .++ v)
 
--- | Vector addition
+-- | Defining Vector addition - requires that Vectors have equal length
 infixl 6 +
-(+) :: (Num a) => Vector a -> Vector a -> Vector a
+(+) :: Vector -> Vector -> Vector
 (+) v Empty = v
-(+) Empty = id
-(+) v zero = v
-(+) zero = id
-(+) (Vec (x:xs)) unit = Vec (x P.+ 1 : xs + unit)
-(+) (Vec (x:xs)) (Vec (y:ys)) = Vec (x P.+ y : xs + ys)
-
--- | Scalar multiplication with a vector (the 'dot' product)
-infixl 7 *
-(*) :: (Num a) => Int -> Vector a -> Vector a
-(*) _ Empty = Empty
-(*) _ zero = zero
-(*) 0 _ = zero
-(*) 1 = id
-(*) c (Vec (x:xs)) = Vec (c P.* x : c * xs)
+(+) Empty v = v
+(+) v Zero = v
+(+) Zero v = v
+(x:+:v) + Unit = (x P.+ 1) :+: (v + Unit)
+Unit + (x:+:v) = (x P.+ 1) :+: (v + Unit)
+(x:+:v) + (y:+:u) = (x P.+ y) :+: (v + u)
