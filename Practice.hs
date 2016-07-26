@@ -16,6 +16,8 @@ instance Show Vector where
   show Empty = ""
   show Zero = "{0}"
   show Unit = "{I}"
+  show (x :+: Unit) = show x ++ show Empty
+  show (x :+: Zero) = show x ++ show Empty
   show (x :+: xs) = show x ++ " " ++ show xs
 
 -- | Generate a Vector from a list of Int values
@@ -52,4 +54,17 @@ infixl 6 +
 (+) Zero v = v
 (x:+:v) + Unit = (x P.+ 1) :+: (v + Unit)
 Unit + (x:+:v) = (x P.+ 1) :+: (v + Unit)
-(x:+:v) + (y:+:u) = (x P.+ y) :+: (v + u)
+(x:+:v) + (y:+:u)
+  | length v == length u = (x P.+ y) :+: (v + u)
+  | otherwise = error "vectors must be of equal length"
+
+infixl 7 *
+(*) :: (Either Int Vector) a => a -> a -> a
+(*) (Left 0) (Right _) = Zero
+(*) (Right _) (Left 0) = Zero
+(*) (Left c) (Right Unit) = c
+(*) (Right Unit) (Left c) = c
+(*) (Left 1) (Right v) = v
+(*) (Right v) (Left 1) = v
+(Left c) * (Right (x:+:v)) = (c * x) :+: (c * v)
+(Right v) * (Left c) = c * v
