@@ -5,6 +5,13 @@
 -- Last Change:   2016 July 27
 --
 
+module Beta.Vector
+    (
+      Vector(..)
+    , Beta.Vector.null
+    , dim
+    ) where
+
 import Prelude hiding( length, (*), (+) )
 import qualified Prelude as P
 import Data.Function
@@ -42,22 +49,30 @@ instance Eq Vector where
              (Vector [],Vector []) -> True
              (Vector [x],Vector[y]) -> x == y
              (Vector (x:xs), Vector (y:ys))
-                                          | length u /= length v -> False
+                                          | dim u /= dim v -> False
                                           | otherwise -> (x == y) && (Vector xs == Vector ys)
              _ -> False
 
 instance Ord Vector where
-  u `compare` v = compare (length u) (length v)
+  compare (Vector []) _ = LT
+  compare _ (Vector []) = GT
+  compare Zero Zero = EQ
+  compare Unit Unit = EQ
+  compare Zero _ = LT
+  compare _ Zero = GT
+  compare Unit _ = LT
+  compare _ Unit = GT
+  u `compare` v = compare (dim u) (dim v)
 
 null :: Vector -> Bool
 null v = case v of
             (Vector []) -> True
             _           -> False
 
-length :: Vector -> Int
-length Zero = error "{ 0 } is of indefinite length"
-length Unit = error "{ 1 } is of indefinite length"
-length v = case v of
+dim :: Vector -> Int
+dim Zero = error "{ 0 } is of indefinite dimension"
+dim Unit = error "{ 1 } is of indefinite dimension"
+dim v = case v of
                Vector []     -> 0
                Vector [x]    -> 1
-               Vector (x:xs) -> 1 P.+ length (Vector xs)
+               Vector (x:xs) -> 1 P.+ dim (Vector xs)
