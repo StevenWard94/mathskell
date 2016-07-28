@@ -12,10 +12,11 @@ module Beta.Vector
     , dim
     ) where
 
-import Prelude hiding( length, (*), (+) )
+import Prelude hiding( length, (*), (+), null )
 import qualified Prelude as P
-import Data.Function
+
 import Data.Char ( isDigit, isSpace )
+import Data.Function
 import Data.List ( nub )
 import Data.List.Split ( splitWhen )
 
