@@ -10,6 +10,10 @@ module Beta.Vector
       Vector(..)
     , Beta.Vector.null
     , dim
+    , asList
+    , (+:)
+    , (+:+)
+    , vmap
     ) where
 
 import Prelude hiding( length, (*), (+), null )
@@ -71,9 +75,39 @@ null v = case v of
             _           -> False
 
 dim :: Vector -> Int
-dim Zero = error "{ 0 } is of indefinite dimension"
-dim Unit = error "{ 1 } is of indefinite dimension"
+dim Zero = undefined
+dim Unit = undefined
 dim v = case v of
                Vector []     -> 0
                Vector [x]    -> 1
                Vector (x:xs) -> 1 P.+ dim (Vector xs)
+
+asList :: Vector -> [Int]
+asList Zero = undefined
+asList Unit = undefined
+asList (Vector []) = []
+asList (Vector [x]) = [x]
+asList (Vector xs) = xs
+
+infixr 5 +:
+(+:) :: Int -> Vector -> Vector
+(+:) _ Zero = undefined
+(+:) _ Unit = undefined
+(+:) x (Vector []) = Vector [x]
+(+:) x (Vector [y]) = Vector [x,y]
+(+:) x (Vector xs) = Vector (x:xs)
+
+infixr 5 +:+
+(+:+) :: Vector -> Vector -> Vector
+(+:+) Zero _ = undefined
+(+:+) _ Zero = undefined
+(+:+) Unit _ = undefined
+(+:+) _ Unit = undefined
+(+:+) u v = Vector (asList u ++ asList v)
+
+vmap :: (Int -> Int) -> Vector -> Vector
+vmap _ Zero = Zero
+vmap _ Unit = undefined
+vmap f (Vector []) = Vector []
+vmap f (Vector [x]) = Vector [f x]
+vmap f (Vector (x:xs)) = (f x) +: (vmap f (Vector xs))
