@@ -11,6 +11,7 @@ module Beta.Vector
     , Beta.Vector.null
     , dim
     , asList
+    , asListWith
     , (+:)
     , (+:+)
     , vmap
@@ -85,9 +86,12 @@ dim v = case v of
 asList :: Vector -> [Int]
 asList Zero = undefined
 asList Unit = undefined
-asList (Vector []) = []
-asList (Vector [x]) = [x]
 asList (Vector xs) = xs
+
+asListWith :: (Int -> b) -> Vector -> [b]
+asListWith _ Zero = undefined
+asListWith _ Unit = undefined
+asListWith f (Vector xs) = [ f x | x <- xs ]
 
 infixr 5 +:
 (+:) :: Int -> Vector -> Vector
@@ -108,6 +112,35 @@ infixr 5 +:+
 vmap :: (Int -> Int) -> Vector -> Vector
 vmap _ Zero = Zero
 vmap _ Unit = undefined
-vmap f (Vector []) = Vector []
-vmap f (Vector [x]) = Vector [f x]
-vmap f (Vector (x:xs)) = (f x) +: (vmap f (Vector xs))
+vmap f (Vector xs) = Vector [ f x | x <- xs ]
+
+infixl 6 +
+(+) :: Vector -> Vector -> Vector
+(+) u Zero = u
+(+) Zero v = v
+(+) u Unit = vmap (P.+1) u
+(+) Unit v = vmap (P.+1) v
+(+) u v = if dim u == dim v
+             then Vector $ zipWith (P.+) (asList u) (asList v)
+             else undefined
+
+-- | scalar multiplication; undefined when used on 2 Vectors
+scalarX :: Either Int Vector -> Either Int Vector -> Vector
+scalarX (Left _) (Right Zero) = Zero
+scalarX (Right Zero) (Left _) = Zero
+scalarX (Left c) (Right Unit) = Vector (repeat c)
+scalarX (Right Unit) (Left c) = Vector (repeat c)
+scalarX (Left c) (Right v) = vmap (P.*c) v
+scalarX (Right u) (Left c) = vmap (P.*c) u
+scalarX (Right _) (Right _) = undefined
+
+-- | vector multiplication (cross-product)
+infixl 7 #
+(#) :: Vector -> Vector -> Int
+(#) _ Zero = 0
+(#) Zero _ = 0
+(#) u Unit = sum $ asList u
+(#) Unit v = sum $ asList v
+(#) u v = if dim u == dim v
+             then sum $ zipWith (P.*) (asList u) (asList v)
+             else undefined
