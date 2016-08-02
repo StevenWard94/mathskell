@@ -7,7 +7,8 @@
 
 module Beta.Vector
     (
-      Vector(..)
+      Vec(..)
+    , Vector(..)
     , Beta.Vector.null
     , dim
     , asList
@@ -15,6 +16,8 @@ module Beta.Vector
     , (+:)
     , (+:+)
     , vmap
+    , (Beta.Vector.+)
+    , (Beta.Vector.*)
     ) where
 
 import Prelude hiding( length, (*), (+), null )
@@ -25,7 +28,18 @@ import Data.Function
 import Data.List ( nub )
 import Data.List.Split ( splitWhen )
 
+-- | Vectorizable typeclass; allows swapping of Int & Vector arguments when
+-- they should be order-insensitive in the given function
+class Vec v where
+    toVec :: v -> Vector
+
 data Vector = Zero | Unit | Vector [Int]
+
+instance Vec Vector where
+    toVec u = u
+
+instance Vec Int where
+    toVec i = Vector [i]
 
 instance Show Vector where
   show Zero = "{ 0 }"
@@ -125,22 +139,14 @@ infixl 6 +
              else undefined
 
 -- | scalar multiplication; undefined when used on 2 Vectors
-scalarX :: Either Int Vector -> Either Int Vector -> Vector
-scalarX (Left _) (Right Zero) = Zero
-scalarX (Right Zero) (Left _) = Zero
-scalarX (Left c) (Right Unit) = Vector (repeat c)
-scalarX (Right Unit) (Left c) = Vector (repeat c)
-scalarX (Left c) (Right v) = vmap (P.*c) v
-scalarX (Right u) (Left c) = vmap (P.*c) u
-scalarX (Right _) (Right _) = undefined
-
--- | vector multiplication (cross-product)
-infixl 7 #
-(#) :: Vector -> Vector -> Int
-(#) _ Zero = 0
-(#) Zero _ = 0
-(#) u Unit = sum $ asList u
-(#) Unit v = sum $ asList v
-(#) u v = if dim u == dim v
-             then sum $ zipWith (P.*) (asList u) (asList v)
-             else undefined
+infixl 7 *
+(*) :: (Vec v) => v -> v -> Vector
+(*) a b
+  | u == Zero || v == Zero = Zero
+  | dim u == 1 = if v == Unit then Vector (repeat i) else vmap (P.* i) v
+  | dim v == 1 = if u == Unit then Vector (repeat j) else vmap (P.* j) u
+  | dim u > 1 && dim v > 1 = undefined
+  where u = toVec a
+        v = toVec b
+        i = head $ asList u
+        j = head $ asList v
