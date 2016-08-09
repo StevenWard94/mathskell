@@ -2,151 +2,116 @@
 -- Module:        Beta.Vector
 -- Author:        Steven Ward <stevenward94@gmail.com>
 -- URL:           https://github.com/StevenWard94/mathskell
--- Last Change:   2016 July 27
+-- Last Change:   2016 Aug 09
 --
 
 module Beta.Vector
     (
-      Vec(..)
-    , Vector(..)
-    , Beta.Vector.null
-    , dim
-    , asList
-    , asListWith
-    , (+:)
-    , (+:+)
-    , vmap
-    , (Beta.Vector.+)
-    , (Beta.Vector.*)
+      Vector(..)
+    , sum, dim, (+>)
+    , fromList, toList
+    , (.+)
     ) where
 
-import Prelude hiding( length, (*), (+), null )
+import Prelude hiding ( sum )
 import qualified Prelude as P
 
-import Data.Char ( isDigit, isSpace )
-import Data.Function
-import Data.List ( nub )
-import Data.List.Split ( splitWhen )
+-- | Defining the Vector type
+data Vector a = Null | a :> (Vector a)
+infixr 5 :>
 
--- | Vectorizable typeclass; allows swapping of Int & Vector arguments when
--- they should be order-insensitive in the given function
-class Vec v where
-    toVec :: v -> Vector
+instance (Show a) => Show (Vector a) where
+    show Null = "( )"
+    show (x:>Null) = "( " ++ show x ++ " )"
+    show (x:>xs) = "( " ++ show x ++ " " ++ showRest xs
+        where showRest xs = case xs of
+                              Null      -> " )"
+                              (x:>Null) -> show x ++ " )"
+                              (x:>xs)   -> show x ++ " " ++ showRest xs
 
-data Vector = Zero | Unit | Vector [Int]
+instance (Eq a, Monoid a) => Eq (Vector a) where
+    Null == Null = True
+    xs   == ys   = if dim xs == dim ys
+                    then sum xs == sum ys
+                    else False
 
-instance Vec Vector where
-    toVec u = u
+instance (Ord a, Monoid a) => Ord (Vector a) where
+    compare Null Null = EQ
+    compare Null _    = LT
+    compare _    Null = GT
+    xs `compare` ys   = if dim xs == dim ys
+                          then sum xs `compare` sum ys
+                          else dim xs `compare` dim ys
 
-instance Vec Int where
-    toVec i = Vector [i]
+instance Functor Vector where
+    fmap _ Null      = Null
+    fmap f (x:>Null) = (f x):>Null
+    fmap f (x:>xs)   = (f x) :> fmap f xs
 
-instance Show Vector where
-  show Zero = "{ 0 }"
-  show Unit = "{ 1 }"
-  show (Vector []) = ""
-  show (Vector [x]) = "( " ++ show x ++ " )"
-  show (Vector (x:xs)) = "( " ++ show x ++ " " ++ showOthers xs ++ " )"
-                      where
-                        showOthers ys = case ys of
-                            []      -> ""
-                            [y]     -> show y
-                            (y:ys)  -> show y ++ " " ++ showOthers ys
+instance Applicative Vector where
+    {-# INLINE pure #-}
+    pure x = x:>Null
+    {-# INLINE (<*>) #-}
+    fs <*> xs = fromList [ f x | x <- xlist, f <- flist ]
+        where xlist = toList xs
+              flist = toList fs
+    {-# INLINE (*>) #-}
+    xs *> ys = fromList [ y | _ <- toList xs, y <- toList ys]
 
-instance Read Vector where
-  readsPrec _ input
-    | P.null result = [(Vector [], "")]
-    | nub result == [0] = [(Zero,"")]
-    | nub result == [1] = [(Unit,"")]
-    | otherwise = [(Vector result, "")]
-    where
-      result = map (read :: String -> Int) (filter (not . P.null) (splitWhen isSpace (filter (\c -> isDigit c || isSpace c) input)))
+instance Monoid (Vector a) where
+    {-# INLINE mempty #-}
+    mempty = Null
+    {-# INLINE mappend #-}
+    mappend = (+>)
 
-instance Eq Vector where
-  u == v = case (u,v) of
-             (Zero,Zero) -> True
-             (Unit,Unit) -> True
-             (Vector [],Vector []) -> True
-             (Vector [x],Vector[y]) -> x == y
-             (Vector (x:xs), Vector (y:ys))
-                                          | dim u /= dim v -> False
-                                          | otherwise -> (x == y) && (Vector xs == Vector ys)
-             _ -> False
+instance Monad Vector where
+    {-# INLINE return #-}
+    return = pure
+    {-# INLINE (>>=) #-}
+    xs >>= f = fromList [ v | x <- toList xs, v <- toList $ f x ]
 
-instance Ord Vector where
-  compare (Vector []) _ = LT
-  compare _ (Vector []) = GT
-  compare Zero Zero = EQ
-  compare Unit Unit = EQ
-  compare Zero _ = LT
-  compare _ Zero = GT
-  compare Unit _ = LT
-  compare _ Unit = GT
-  u `compare` v = compare (dim u) (dim v)
+-- | Vector utility functions
+sum :: (Monoid a) => Vector a -> a
+sum Null = mempty
+sum (x:>Null) = x
+sum (x:>xs) = x `mappend` (sum xs)
 
-null :: Vector -> Bool
-null v = case v of
-            (Vector []) -> True
-            _           -> False
+dim :: Vector a -> Int
+dim Null = 0
+dim (x:>Null) = 1
+dim (x:>xs) = 1 + dim xs
 
-dim :: Vector -> Int
-dim Zero = undefined
-dim Unit = undefined
-dim v = case v of
-               Vector []     -> 0
-               Vector [x]    -> 1
-               Vector (x:xs) -> 1 P.+ dim (Vector xs)
+fromList :: [a] -> Vector a
+fromList []     = Null
+fromList [x]    = x:>Null
+fromList (x:xs) = x :> fromList xs
 
-asList :: Vector -> [Int]
-asList Zero = undefined
-asList Unit = undefined
-asList (Vector xs) = xs
+toList :: Vector a -> [a]
+toList Null      = []
+toList (x:>Null) = [x]
+toList (x:>xs)   = x : toList xs
 
-asListWith :: (Int -> b) -> Vector -> [b]
-asListWith _ Zero = undefined
-asListWith _ Unit = undefined
-asListWith f (Vector xs) = [ f x | x <- xs ]
+zipWithV :: (a -> b -> c) -> Vector a -> Vector b -> Vector c
+zipWithV _ Null _ = Null
+zipWithV _ _ Null = Null
+zipWithV f (x:>xs) (y:>ys) = (f x y) :> (zipWithV f xs ys)
 
-infixr 5 +:
-(+:) :: Int -> Vector -> Vector
-(+:) _ Zero = undefined
-(+:) _ Unit = undefined
-(+:) x (Vector []) = Vector [x]
-(+:) x (Vector [y]) = Vector [x,y]
-(+:) x (Vector xs) = Vector (x:xs)
+(+>) :: Vector a -> Vector a -> Vector a
+u +> v = fromList $ toList u ++ toList v
+infixr 5 +>
 
-infixr 5 +:+
-(+:+) :: Vector -> Vector -> Vector
-(+:+) Zero _ = undefined
-(+:+) _ Zero = undefined
-(+:+) Unit _ = undefined
-(+:+) _ Unit = undefined
-(+:+) u v = Vector (asList u ++ asList v)
+-- | Implementations of arithmetic operators for the Vector type
+(.+) :: (Real a) => Vector a -> Vector a -> Vector a
+Null .+ y    = y
+x    .+ Null = x
+(x:>Null) .+ (y:>Null) = (x + y) :> Null
+(x:>xs) .+ (y:>ys)
+    | dim xs == dim ys = (x + y) :> (xs .+ ys)
+    | otherwise       = undefined
+infixl 6 .+
 
-vmap :: (Int -> Int) -> Vector -> Vector
-vmap _ Zero = Zero
-vmap _ Unit = undefined
-vmap f (Vector xs) = Vector [ f x | x <- xs ]
-
-infixl 6 +
-(+) :: Vector -> Vector -> Vector
-(+) u Zero = u
-(+) Zero v = v
-(+) u Unit = vmap (P.+1) u
-(+) Unit v = vmap (P.+1) v
-(+) u v = if dim u == dim v
-             then Vector $ zipWith (P.+) (asList u) (asList v)
-             else undefined
-
--- | scalar multiplication; undefined when used on 2 Vectors
-infixl 7 *
-(*) :: (Vec v) => v -> v -> Vector
-(*) a b
-  | u == Zero || v == Zero = Zero
-  | dim u == 1 = if v == Unit then Vector (repeat i) else vmap (P.* i) v
-  | dim v == 1 = if u == Unit then Vector (repeat j) else vmap (P.* j) u
-  | dim u > 1 && dim v > 1 = undefined
-  where u = toVec a
-        v = toVec b
-        i = head $ asList u
-        j = head $ asList v
+(.*) :: (Real a) => Vector a -> Vector a -> a
+Null .* _    = 0
+_    .* Null = 0
+xs   .* ys
+    | dim xs == dim ys = fromList $ foldr
