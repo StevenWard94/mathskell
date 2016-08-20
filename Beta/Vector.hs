@@ -7,6 +7,8 @@
 
 module Beta.Vector where
 
+import Control.Applicative
+
 data Vector a = Vector | a :. (Vector a)
 infixr 5 :.
 
@@ -28,7 +30,18 @@ instance (Ord a, Num a) => Ord (Vector a) where
     compare = (. (sum . toList)) . compare . sum . toList
 
 instance Functor Vector where
-    fmap = (fromList .) . (. toList) . fmap
+    fmap = (fromList .) . (. toList) . (<$>)
+
+instance Applicative Vector where
+    pure  = (:. Vector)
+    vecVals  <*>  vecFuncs  =  fromList (zipWith ($) (toList vecVals) (toList vecFuncs))
+
+instance Monoid (Vector a) where
+    mempty  =  Vector
+    mappend = (++.)
+
+(++.) :: Vector a -> Vector a -> Vector a
+(++.)  =  (fromList .) . (. toList) . (++) . toList
 
 toList :: Vector a -> [a]
 toList v  =  case v of
