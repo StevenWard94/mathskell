@@ -54,10 +54,11 @@ instance MonadPlus Vector where
     mplus  =  mappend
 
 instance Foldable Vector where
-    foldr k z  =  go
-        where
-            go Vector  =  z
-            go (v:.vs) =  v `k` go vs
+    foldMap g vec  =  mconcat (toList (fmapV g (vec)))
+--  foldr k z  =  go
+--      where
+--          go Vector  =  z
+--          go (v:.vs) =  v `k` go vs
 
 (++.) :: Vector a -> Vector a -> Vector a
 (++.)  =  (fromList .) . (. toList) . (++) . toList
@@ -74,5 +75,9 @@ fromList [x]    = x:.Vector
 fromList (x:xs) = x :. fromList xs
 
 joinV :: Vector (Vector a) -> Vector a
-join Vector  =  Vector
+joinV Vector  =  Vector
 joinV (vs:.vss)  =  vs ++. joinV vss
+
+fmapV :: (a -> b) -> Vector a -> Vector b
+fmapV _ Vector   =  Vector
+fmapV g (v:.vs)  =  g v :. fmapV g vs
