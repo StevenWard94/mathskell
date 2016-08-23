@@ -10,51 +10,25 @@ module Beta.LinkedList where
 import Control.Applicative
 import Control.Monad
 
-data Node a = Node a | Nul deriving (Read)
+data Node a = Nul | Node a (Node a) deriving (Read)
 
 instance Show a => Show (Node a) where
-    show (Node x) = "[|  data: " ++ show x ++ "  |] → "
-    show Nul      = "[|  NUL  |]"
+    show Nul        = "[| NUL |]"
+    show (Node x _) = "[| " ++ show x ++ " |] → "
 
 instance Eq a => Eq (Node a) where
-    Nul == Nul        =  True
-    Node x == Node y  =  x == y
-    (==) _ _          = False
+    Nul == Nul              =  True
+    Nul == _                =  False
+    _   == Nul              =  False
+    Node x n1 == Node y n2  =  x == y && n1 == n2
 
 instance Ord a => Ord (Node a) where
-    compare Nul Nul          =  EQ
-    compare Nul _            =  LT
-    compare _   Nul          =  GT
-    Node x `compare` Node y  =  compare x y
+    compare Nul Nul                =  EQ
+    compare Nul _                  =  LT
+    compare _   Nul                =  GT
+    compare (Node x _) (Node y _)  =  x `compare` y
 
 instance Functor Node where
-    fmap _ Nul      = Nul
-    fmap f (Node x) = Node $ f x
-
-instance Applicative Node where
-    pure x           = Node x
-
-    Node f <*> n       =  fmap f n
-    Nul    <*> _n      =  Nul
-
-    Node _n1 *> n2   =  n2
-    Nul      *> _n2  =  Nul
-
-instance Monad Node where
-    (Node x) >>= f     =  f x
-    Nul      >>= _     = Nul
-
-    (>>) = (*>)
-    fail _           = Nul
-
-instance Alternative Node where
-    empty = Nul
-    Nul <|> r = r
-    l   <|> _ = l
-
-instance Monoid a => Monoid (Node a) where
-    mempty = Nul
-    Nul `mappend` n           =  n
-    n `mappend` Nul           =  n
-    Node n1 `mappend` Node n2 =  Node (n1 `mappend` n2)
+    fmap _ Nul          =  Nul
+    fmap f (Node x n')  =  Node (f x) $ fmap f n'
 
